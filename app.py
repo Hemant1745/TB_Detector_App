@@ -71,9 +71,21 @@ def check_password(password, hashed):
 # -------------------------------
 # 🧠 Load Model (cached)
 # -------------------------------
+import os
+import gdown
+from tensorflow.keras.models import load_model
+import streamlit as st
+
 @st.cache_resource
 def load_tb_model():
-    return load_model("model/my_model.keras")
+    model_path = "model/my_model.keras"
+    if not os.path.exists(model_path):
+        st.info("📥 Downloading AI model...")
+        os.makedirs("model", exist_ok=True)
+        url = "https://drive.google.com/uc?export=download&id=1C8fXLwrfV_ZV4xjYwJgdejLzBp7-rboi"
+        gdown.download(url, model_path, quiet=False)
+    model = load_model(model_path)
+    return model
 
 # -------------------------------
 # 🧾 Generate PDF Report with X-ray Thumbnail

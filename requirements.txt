@@ -6,3 +6,4 @@ psycopg2-binary
 bcrypt
 fpdf
 python-dotenv
+gdown

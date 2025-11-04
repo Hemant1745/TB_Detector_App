@@ -1,0 +1,8 @@
+streamlit
+tensorflow
+numpy
+pillow
+psycopg2-binary
+bcrypt
+fpdf
+python-dotenv

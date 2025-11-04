@@ -91,37 +91,47 @@ def load_tb_model():
 # -------------------------------
 # 🧾 Generate PDF Report with X-ray Thumbnail
 # -------------------------------
+import re
+from fpdf import FPDF
+
 def generate_pdf(username, filename, tb_prob, normal_prob, result_text, image_path):
     pdf = FPDF()
     pdf.add_page()
 
-    # ✅ Try Unicode font first; fallback to Helvetica if not found
-    try:
-        pdf.add_font("DejaVu", "", "fonts/DejaVuSans.ttf", uni=True)
+    # 🧠 Try to load Unicode font safely
+    font_path = "fonts/DejaVuSans.ttf"
+    if os.path.exists(font_path):
+        pdf.add_font("DejaVu", "", font_path, uni=True)
         pdf.set_font("DejaVu", "", 14)
-    except Exception:
+    else:
         pdf.set_font("Helvetica", "", 14)
 
-    pdf.cell(200, 10, txt="Tuberculosis Detection Report", ln=True, align="C")
+    # 🧹 Clean text to remove emojis or unsupported chars
+    def clean_text(txt):
+        return re.sub(r"[^\x00-\x7F]+", "", txt)
+
+    pdf.cell(200, 10, txt=clean_text("Tuberculosis Detection Report"), ln=True, align="C")
     pdf.ln(10)
 
-    # 🩻 Add X-ray thumbnail
+    # 🩻 Add X-ray thumbnail if exists
     if os.path.exists(image_path):
-        pdf.image(image_path, x=60, y=25, w=90)
-        pdf.ln(85)
+        try:
+            pdf.image(image_path, x=60, y=25, w=90)
+            pdf.ln(85)
+        except Exception:
+            pdf.ln(20)
 
     pdf.set_font("Helvetica", "", 12)
-    pdf.cell(200, 10, txt=f"Patient/User: {username}", ln=True)
-    pdf.cell(200, 10, txt=f"File: {filename}", ln=True)
+    pdf.cell(200, 10, txt=f"Patient/User: {clean_text(username)}", ln=True)
+    pdf.cell(200, 10, txt=f"File: {clean_text(filename)}", ln=True)
     pdf.cell(200, 10, txt=f"TB Probability: {tb_prob*100:.2f}%", ln=True)
     pdf.cell(200, 10, txt=f"Normal Probability: {normal_prob*100:.2f}%", ln=True)
-    pdf.cell(200, 10, txt=f"Diagnosis: {result_text}", ln=True)
+    pdf.cell(200, 10, txt=f"Diagnosis: {clean_text(result_text)}", ln=True)
     pdf.cell(200, 10, txt=f"Analysis Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True)
 
     report_name = f"report_{username}_{datetime.now().strftime('%H%M%S')}.pdf"
     pdf.output(report_name)
     return report_name
-
 
 # -------------------------------
 # 📝 Register User

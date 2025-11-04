@@ -91,30 +91,32 @@ def load_tb_model():
 # -------------------------------
 # 🧾 Generate PDF Report with X-ray Thumbnail
 # -------------------------------
-from fpdf import FPDF
-
 def generate_pdf(username, filename, tb_prob, normal_prob, result_text, image_path):
     pdf = FPDF()
     pdf.add_page()
 
-    # ✅ Load Unicode font (must be in fonts/ folder)
-    pdf.add_font("DejaVu", "", "fonts/DejaVuSans.ttf", uni=True)
-    pdf.set_font("DejaVu", "", 14)
+    # ✅ Try Unicode font first; fallback to Helvetica if not found
+    try:
+        pdf.add_font("DejaVu", "", "fonts/DejaVuSans.ttf", uni=True)
+        pdf.set_font("DejaVu", "", 14)
+    except Exception:
+        pdf.set_font("Helvetica", "", 14)
 
-    pdf.cell(200, 10, txt="🫁 Tuberculosis Detection Report", ln=True, align="C")
+    pdf.cell(200, 10, txt="Tuberculosis Detection Report", ln=True, align="C")
     pdf.ln(10)
 
     # 🩻 Add X-ray thumbnail
-    pdf.image(image_path, x=60, y=25, w=90)
-    pdf.ln(85)
+    if os.path.exists(image_path):
+        pdf.image(image_path, x=60, y=25, w=90)
+        pdf.ln(85)
 
-    pdf.set_font("DejaVu", "", 12)
-    pdf.cell(200, 10, txt=f"👤 Patient/User: {username}", ln=True)
-    pdf.cell(200, 10, txt=f"📁 File: {filename}", ln=True)
-    pdf.cell(200, 10, txt=f"🧮 TB Probability: {tb_prob*100:.2f}%", ln=True)
-    pdf.cell(200, 10, txt=f"🩺 Normal Probability: {normal_prob*100:.2f}%", ln=True)
-    pdf.cell(200, 10, txt=f"{result_text}", ln=True)
-    pdf.cell(200, 10, txt=f"🕓 Analysis Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True)
+    pdf.set_font("Helvetica", "", 12)
+    pdf.cell(200, 10, txt=f"Patient/User: {username}", ln=True)
+    pdf.cell(200, 10, txt=f"File: {filename}", ln=True)
+    pdf.cell(200, 10, txt=f"TB Probability: {tb_prob*100:.2f}%", ln=True)
+    pdf.cell(200, 10, txt=f"Normal Probability: {normal_prob*100:.2f}%", ln=True)
+    pdf.cell(200, 10, txt=f"Diagnosis: {result_text}", ln=True)
+    pdf.cell(200, 10, txt=f"Analysis Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True)
 
     report_name = f"report_{username}_{datetime.now().strftime('%H%M%S')}.pdf"
     pdf.output(report_name)

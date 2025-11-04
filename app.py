@@ -1,3 +1,4 @@
+# Trigger redeploy on Render (added font fix)
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 

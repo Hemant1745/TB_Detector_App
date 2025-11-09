@@ -136,31 +136,83 @@ def generate_pdf(username, filename, tb_prob, normal_prob, result_text, image_pa
 # -------------------------------
 # 📝 Register User
 # -------------------------------
+import re
+import streamlit as st
+
 def register_user():
     st.title("📝 Register New Account")
+
     username = st.text_input("👤 Username")
-    email = st.text_input("📧 Email")
+    email = st.text_input("📧 Email Address")
+
+    st.info("""
+    🔒 **Password Requirements:**
+    - At least 8 characters  
+    - One uppercase letter  
+    - One lowercase letter  
+    - One number  
+    - One special symbol (e.g., !@#$%^&)
+    """)
+
     password = st.text_input("🔑 Password", type="password")
+    confirm_password = st.text_input("🔁 Confirm Password", type="password")
+
+    # ✅ Email validation
+    def is_valid_email(email):
+        pattern = r'^[\w\.-]+@[\w\.-]+\.\w+$'
+        return re.match(pattern, email) is not None
+
+    # ✅ Password strength analysis
+    def password_strength(pw):
+        if len(pw) < 8:
+            return "Weak", 0.2, "❌ Too short (min 8 chars)"
+        score = 0
+        if re.search(r"[A-Z]", pw): score += 1
+        if re.search(r"[a-z]", pw): score += 1
+        if re.search(r"\d", pw): score += 1
+        if re.search(r"[!@#$%^&*(),.?\":{}|<>]", pw): score += 1
+
+        if score <= 1:
+            return "Weak", 0.3, "⚠️ Add more complexity"
+        elif score == 2:
+            return "Moderate", 0.6, "✅ Getting stronger"
+        else:
+            return "Strong", 1.0, "💪 Excellent password!"
+
+    # Show strength meter dynamically
+    if password:
+        strength_label, strength_value, strength_msg = password_strength(password)
+        st.progress(strength_value)
+        st.write(f"**Password Strength:** {strength_label} — {strength_msg}")
 
     col1, col2 = st.columns([1, 1])
+
     with col1:
         if st.button("Register"):
-            if username and email and password:
-                hashed_pwd = hash_password(password)
+            if not username or not email or not password or not confirm_password:
+                st.warning("⚠️ Please fill in all fields.")
+            elif not is_valid_email(email):
+                st.error("❌ Please enter a valid email address.")
+            elif password != confirm_password:
+                st.error("❌ Passwords do not match.")
+            elif password_strength(password)[0] == "Weak":
+                st.error("❌ Please use a stronger password.")
+            else:
                 try:
+                    hashed_pwd = hash_password(password)
                     conn = get_connection()
                     cur = conn.cursor()
-                    cur.execute("INSERT INTO users (username, email, password_hash) VALUES (%s, %s, %s)",
-                                (username, email, hashed_pwd))
+                    cur.execute(
+                        "INSERT INTO users (username, email, password_hash) VALUES (%s, %s, %s)",
+                        (username, email, hashed_pwd)
+                    )
                     conn.commit()
+                    cur.close()
+                    conn.close()
                     st.success("✅ Registration successful! You can now log in.")
                 except Exception as e:
                     st.error(f"⚠️ Registration failed: {e}")
-                finally:
-                    cur.close()
-                    conn.close()
-            else:
-                st.warning("Please fill in all fields.")
+
     with col2:
         if st.button("⬅️ Back to Login"):
             st.session_state["show_register"] = False

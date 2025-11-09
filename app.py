@@ -199,17 +199,26 @@ def register_user():
                 st.error("❌ Please use a stronger password.")
             else:
                 try:
-                    hashed_pwd = hash_password(password)
                     conn = get_connection()
                     cur = conn.cursor()
-                    cur.execute(
-                        "INSERT INTO users (username, email, password_hash) VALUES (%s, %s, %s)",
-                        (username, email, hashed_pwd)
-                    )
-                    conn.commit()
+
+                    # ✅ Check if username or email already exists
+                    cur.execute("SELECT * FROM users WHERE username = %s OR email = %s", (username, email))
+                    existing_user = cur.fetchone()
+                    if existing_user:
+                        st.error("❌ Username or Email already registered. Please use a different one.")
+                    else:
+                        hashed_pwd = hash_password(password)
+                        cur.execute(
+                            "INSERT INTO users (username, email, password_hash) VALUES (%s, %s, %s)",
+                            (username, email, hashed_pwd)
+                        )
+                        conn.commit()
+                        st.success("✅ Registration successful! You can now log in.")
+
                     cur.close()
                     conn.close()
-                    st.success("✅ Registration successful! You can now log in.")
+
                 except Exception as e:
                     st.error(f"⚠️ Registration failed: {e}")
 

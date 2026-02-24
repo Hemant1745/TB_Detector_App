@@ -226,7 +226,7 @@ if uploaded_file:
                 st.image(superimposed_img, use_container_width=True)
 
                 heatmap_path = "temp_heatmap.png"
-                cv2.imwrite(heatmap_path, cv2.cvtColor(superimposed_img, cv2.COLOR_RGB2BGR))
+                cv2.imwrite(heatmap_path, superimposed_img)
 
         elif 0.3 <= tb_prob <= 0.5:
             msg = "⚠️ Possible Tuberculosis"
@@ -244,6 +244,9 @@ if uploaded_file:
 
         temp_image_path = "temp_image.png"
         img.save(temp_image_path)
+        if heatmap_path:
+            st.write("Heatmap file exists:", os.path.exists(heatmap_path))
+
 
         report_file = generate_pdf(
             uploaded_file.name,

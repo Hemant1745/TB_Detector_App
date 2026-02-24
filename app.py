@@ -1,58 +1,38 @@
-import tensorflow as tf
-import cv2
-import numpy as np
-
-def make_gradcam_heatmap(img_array, model, last_conv_layer_name):
-    grad_model = tf.keras.models.Model(
-        [model.inputs],
-        [model.get_layer(last_conv_layer_name).output, model.output]
-    )
-
-    with tf.GradientTape() as tape:
-        conv_outputs, predictions = grad_model(img_array)
-        loss = predictions[:, 0]
-
-    grads = tape.gradient(loss, conv_outputs)
-
-    pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
-    conv_outputs = conv_outputs[0]
-
-    heatmap = conv_outputs @ pooled_grads[..., tf.newaxis]
-    heatmap = tf.squeeze(heatmap)
-
-    heatmap = np.maximum(heatmap, 0) / np.max(heatmap)
-    return heatmap.numpy()
-
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 import streamlit as st
 import numpy as np
+import tensorflow as tf
+import cv2
 from PIL import Image
 from datetime import datetime
 from tensorflow.keras.models import load_model
 import gdown
 from fpdf import FPDF
-import re
+import uuid
+import qrcode
 
 st.set_page_config(page_title="🫁 TB Detection AI", layout="wide")
 
 # -------------------------------
-# 🎨 Styling
+# Styling
 # -------------------------------
 st.markdown("""
 <style>
 h1, h2, h3 {text-align: center;}
 .result-card {
     background-color: rgba(0,0,0,0.05);
-    padding: 1.5em; border-radius: 15px;
-    text-align: center; margin-top: 1em;
+    padding: 1.5em;
+    border-radius: 15px;
+    text-align: center;
+    margin-top: 1em;
 }
 </style>
 """, unsafe_allow_html=True)
 
 # -------------------------------
-# 🧠 Load Model
+# Load Model
 # -------------------------------
 @st.cache_resource
 def load_tb_model():
@@ -65,14 +45,31 @@ def load_tb_model():
     return load_model(model_path)
 
 # -------------------------------
-# 🧾 PDF Report Generator
+# Grad-CAM
 # -------------------------------
-from fpdf import FPDF
-from datetime import datetime
-import os
-import uuid
-import qrcode
+def make_gradcam_heatmap(img_array, model, last_conv_layer_name):
+    grad_model = tf.keras.models.Model(
+        [model.inputs],
+        [model.get_layer(last_conv_layer_name).output, model.output]
+    )
 
+    with tf.GradientTape() as tape:
+        conv_outputs, predictions = grad_model(img_array)
+        loss = predictions[:, 0]
+
+    grads = tape.gradient(loss, conv_outputs)
+    pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
+    conv_outputs = conv_outputs[0]
+
+    heatmap = conv_outputs @ pooled_grads[..., tf.newaxis]
+    heatmap = tf.squeeze(heatmap)
+
+    heatmap = np.maximum(heatmap, 0) / np.max(heatmap)
+    return heatmap.numpy()
+
+# -------------------------------
+# PDF Generator
+# -------------------------------
 def generate_pdf(
     filename,
     tb_prob,
@@ -85,35 +82,22 @@ def generate_pdf(
     referring_physician
 ):
 
-
-    # -----------------------------
-    # Generate Report ID
-    # -----------------------------
     report_id = f"TB-{uuid.uuid4().hex[:8].upper()}"
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     pdf = FPDF()
     pdf.add_page()
 
-    # -----------------------------
-    # Load Unicode Font
-    # -----------------------------
     font_path = "fonts/DejaVuSans.ttf"
-    pdf.add_font("DejaVu", "", font_path, uni=True)
-    pdf.set_font("DejaVu", "", 12)
+    if os.path.exists(font_path):
+        pdf.add_font("DejaVu", "", font_path, uni=True)
+        pdf.set_font("DejaVu", "", 12)
+    else:
+        pdf.set_font("Arial", size=12)
 
-    # -----------------------------
-    # Hospital Logo (optional)
-    # -----------------------------
-    # Hospital Logo
     if os.path.exists("assets/logo.jpg"):
         pdf.image("assets/logo.jpg", x=10, y=8, w=30)
 
-
-
-    # -----------------------------
-    # Header
-    # -----------------------------
     pdf.set_font("DejaVu", "", 16)
     pdf.cell(0, 10, "AI-Assisted Tuberculosis Screening Report", ln=True, align="C")
     pdf.ln(5)
@@ -121,123 +105,56 @@ def generate_pdf(
     pdf.set_font("DejaVu", "", 10)
     pdf.cell(0, 8, f"Report ID: {report_id}", ln=True)
     pdf.cell(0, 8, f"Generated: {timestamp}", ln=True)
-    pdf.ln(3)
+    pdf.ln(5)
 
-    # -----------------------------
-    # Patient Information
-    # -----------------------------
     pdf.set_font("DejaVu", "", 12)
     pdf.cell(0, 8, "Patient Information", ln=True)
-    pdf.set_font("DejaVu", "", 10)
 
+    pdf.set_font("DejaVu", "", 10)
     pdf.multi_cell(0, 6,
-        f"Name: {patient_name or 'N/A'}\n"
-        f"Patient ID: {patient_id or 'N/A'}\n"
+        f"Name: {patient_name}\n"
+        f"Patient ID: {patient_id}\n"
         f"Age: {patient_age}\n"
         f"Gender: {patient_gender}\n"
-        f"Referring Physician: {referring_physician or 'N/A'}"
+        f"Referring Physician: {referring_physician}"
     )
-    pdf.ln(3)
+    pdf.ln(5)
 
-    # -----------------------------
-    # Insert X-ray Image
-    # -----------------------------
     if os.path.exists(image_path):
         pdf.image(image_path, x=40, w=130)
         pdf.ln(85)
 
-    # -----------------------------
-    # AI Probability Assessment
-    # -----------------------------
     pdf.set_font("DejaVu", "", 12)
     pdf.cell(0, 8, "AI Probability Assessment", ln=True)
-    pdf.set_font("DejaVu", "", 10)
 
+    pdf.set_font("DejaVu", "", 10)
     pdf.multi_cell(0, 6,
         f"Tuberculosis Probability: {tb_prob*100:.2f}%\n"
         f"Normal Probability: {normal_prob*100:.2f}%"
     )
-    pdf.ln(3)
+    pdf.ln(5)
 
-    # -----------------------------
-    # Clinical Interpretation
-    # -----------------------------
-    pdf.set_font("DejaVu", "", 12)
-    pdf.cell(0, 8, "Clinical Interpretation", ln=True)
-    pdf.set_font("DejaVu", "", 10)
-
-    if tb_prob >= 0.70:
-        interpretation = (
-            "Findings highly suggestive of active pulmonary tuberculosis. "
-            "Immediate clinical evaluation and laboratory confirmation recommended."
-        )
-    elif 0.40 <= tb_prob < 0.70:
-        interpretation = (
-            "Radiographic features possibly consistent with tuberculosis. "
-            "Further diagnostic testing is advised."
-        )
+    if tb_prob >= 0.7:
+        interpretation = "Findings highly suggestive of active pulmonary tuberculosis."
+    elif 0.4 <= tb_prob < 0.7:
+        interpretation = "Radiographic features possibly consistent with tuberculosis."
     else:
-        interpretation = (
-            "No radiographic evidence strongly indicative of active pulmonary tuberculosis."
-        )
+        interpretation = "No strong radiographic evidence of tuberculosis."
 
     pdf.multi_cell(0, 6, interpretation)
-    pdf.ln(3)
+    pdf.ln(5)
 
-    # -----------------------------
-    # AI Confidence Explanation
-    # -----------------------------
-    pdf.set_font("DejaVu", "", 12)
-    pdf.cell(0, 8, "AI Confidence Explanation", ln=True)
-    pdf.set_font("DejaVu", "", 10)
-
-    pdf.multi_cell(0, 6,
-        f"The confidence score ({tb_prob:.4f}) represents the predicted "
-        f"likelihood of tuberculosis based on the AI model's learned "
-        f"radiographic feature patterns. This does not constitute a confirmed diagnosis."
-    )
-    pdf.ln(3)
-
-    # -----------------------------
-    # QR Code
-    # -----------------------------
-    qr_data = (
-        f"Report ID: {report_id}\n"
-        f"Patient: {patient_name}\n"
-        f"TB Probability: {tb_prob:.4f}\n"
-        f"Generated: {timestamp}"
-    )
-
+    qr_data = f"Report ID: {report_id}\nTB Probability: {tb_prob:.4f}"
     qr = qrcode.make(qr_data)
     qr_path = "temp_qr.png"
     qr.save(qr_path)
-
     pdf.image(qr_path, x=160, y=20, w=35)
     os.remove(qr_path)
 
-    # -----------------------------
-    # Digital Signature Block
-    # -----------------------------
-    pdf.ln(10)
-    pdf.set_font("DejaVu", "", 12)
-    pdf.cell(0, 8, "Authorized Digital Signature", ln=True)
-    pdf.set_font("DejaVu", "", 10)
-
-    pdf.multi_cell(0, 6,
-        "AI Radiology System\n"
-        "Digitally Generated Report\n"
-        f"Signature ID: {report_id}"
-    )
-    pdf.ln(3)
-
-    # -----------------------------
-    # Medical Disclaimer
-    # -----------------------------
     pdf.set_font("DejaVu", "", 9)
     pdf.multi_cell(0, 5,
-        "This AI-generated report is intended for screening support purposes only "
-        "and does not replace professional medical diagnosis. Clinical decisions "
-        "must be made by a licensed medical practitioner."
+        "This AI-generated report is for screening purposes only "
+        "and does not replace professional medical diagnosis."
     )
 
     report_name = f"{report_id}_TB_Report.pdf"
@@ -246,23 +163,21 @@ def generate_pdf(
     return report_name
 
 # -------------------------------
-# 🚀 Main Dashboard
+# MAIN APP
 # -------------------------------
 st.title("🫁 Tuberculosis Detection AI")
 
 model = load_tb_model()
 st.success("✅ AI Model Loaded")
 
-# -------------------------
-# Patient Information Form
-# -------------------------
+# Patient Form
 st.subheader("Patient Information")
 
 col1, col2 = st.columns(2)
 
 with col1:
     patient_name = st.text_input("Patient Name")
-    patient_age = st.number_input("Age", min_value=0, max_value=120, step=1)
+    patient_age = st.number_input("Age", 0, 120)
     patient_gender = st.selectbox("Gender", ["Male", "Female", "Other"])
 
 with col2:
@@ -271,12 +186,11 @@ with col2:
 
 st.divider()
 
-# -------------------------
-# File Upload
-# -------------------------
-uploaded_file = st.file_uploader("📤 Upload Chest X-ray", type=["jpg", "jpeg", "png"])
-
-
+uploaded_file = st.file_uploader(
+    "📤 Upload Chest X-ray",
+    type=["jpg", "jpeg", "png"],
+    key="tb_upload"
+)
 
 if uploaded_file:
     img = Image.open(uploaded_file)
@@ -297,22 +211,8 @@ if uploaded_file:
         tb_prob = float(pred)
         normal_prob = 1 - tb_prob
 
-       if tb_prob > 0.5:
-    msg = "Positive for Tuberculosis"
-
-elif 0.3 <= tb_prob <= 0.5:
-    msg = "⚠️ Possible Tuberculosis"
-
-else:
-    msg = "✅ No Radiographic Evidence of Tuberculosis"
-
-
-    superimposed_img = cv2.addWeighted(
-        np.array(img), 0.6, heatmap, 0.4, 0
-    )
-
-    st.subheader("📍 TB Localization (AI Highlight)")
-    st.image(superimposed_img, use_container_width=True)
+        if tb_prob > 0.5:
+            msg = "Positive for Tuberculosis"
         elif 0.3 <= tb_prob <= 0.5:
             msg = "⚠️ Possible Tuberculosis"
         else:
@@ -326,9 +226,22 @@ else:
         """, unsafe_allow_html=True)
 
         st.progress(tb_prob)
-        st.text(f"Normal Probability: {normal_prob:.4f}")
 
-              # PDF generation
+        # Grad-CAM
+        if tb_prob > 0.5:
+            heatmap = make_gradcam_heatmap(img_array, model, "conv2d_2")
+            heatmap = cv2.resize(heatmap, (img.width, img.height))
+            heatmap = np.uint8(255 * heatmap)
+            heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+
+            superimposed_img = cv2.addWeighted(
+                np.array(img), 0.6, heatmap, 0.4, 0
+            )
+
+            st.subheader("📍 AI Highlighted TB Region")
+            st.image(superimposed_img, use_container_width=True)
+
+        # Generate PDF
         temp_image_path = "temp_image.png"
         img.save(temp_image_path)
 
@@ -353,7 +266,3 @@ else:
                 file_name=report_file,
                 mime="application/pdf"
             )
-
-        st.markdown(
-            f"Analysis Time: {datetime.now().strftime('%H:%M:%S')}"
-        )

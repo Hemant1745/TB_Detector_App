@@ -48,6 +48,9 @@ def load_tb_model():
 # Grad-CAM
 def make_gradcam_heatmap(img_array, model, last_conv_layer_name):
 
+    # Ensure gradient tracking
+    img_tensor = tf.convert_to_tensor(img_array)
+    
     grad_model = tf.keras.models.Model(
         inputs=model.inputs,
         outputs=[
@@ -57,10 +60,14 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name):
     )
 
     with tf.GradientTape() as tape:
-        conv_outputs, predictions = grad_model(img_array)
+        conv_outputs, predictions = grad_model(img_tensor, training=True)
         loss = predictions[:, 0]
 
     grads = tape.gradient(loss, conv_outputs)
+
+    # 🔴 If grads is None, stop safely
+    if grads is None:
+        return None
 
     pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
     conv_outputs = conv_outputs[0]
@@ -70,9 +77,11 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name):
         axis=-1
     )
 
-    heatmap = tf.maximum(heatmap, 0) / (tf.reduce_max(heatmap) + 1e-8)
+    heatmap = tf.maximum(heatmap, 0)
+    heatmap /= tf.reduce_max(heatmap) + 1e-8
 
     return heatmap.numpy()
+
 
 # -------------------------------
 # PDF Generator
@@ -241,16 +250,24 @@ if uploaded_file:
         # Grad-CAM
         if tb_prob > 0.5:
             heatmap = make_gradcam_heatmap(img_array, model, "conv2d_2")
-            heatmap = cv2.resize(heatmap, (img.width, img.height))
-            heatmap = np.uint8(255 * heatmap)
-            heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
 
-            superimposed_img = cv2.addWeighted(
-                np.array(img), 0.6, heatmap, 0.4, 0
-            )
+if heatmap is not None:
+    heatmap = cv2.resize(heatmap, (img.width, img.height))
+    heatmap = np.uint8(255 * heatmap)
+    heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
 
-            st.subheader("📍 AI Highlighted TB Region")
-            st.image(superimposed_img, use_container_width=True)
+    superimposed_img = cv2.addWeighted(
+        np.array(img),
+        0.6,
+        heatmap,
+        0.4,
+        0
+    )
+
+    st.subheader("📍 AI Highlighted TB Region")
+    st.image(superimposed_img, use_container_width=True)
+
+            
 
         # Generate PDF
         temp_image_path = "temp_image.png"

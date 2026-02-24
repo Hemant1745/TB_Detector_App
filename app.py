@@ -46,10 +46,8 @@ def load_tb_model():
 
 # -------------------------------
 # Grad-CAM
-# -------------------------------
 def make_gradcam_heatmap(img_array, model, last_conv_layer_name):
 
-    # Create grad model
     grad_model = tf.keras.models.Model(
         inputs=model.inputs,
         outputs=[
@@ -177,12 +175,11 @@ def generate_pdf(
 st.title("🫁 Tuberculosis Detection AI")
 
 model = load_tb_model()
-# Force model to build (Keras 3 fix)
-dummy = np.zeros((1, 224, 224, 3))
-_ = model(dummy)
+# Force model graph build (Keras 3 fix)
+dummy_input = np.zeros((1, 224, 224, 3))
+_ = model(dummy_input)
 st.success("✅ AI Model Loaded")
-st.write("Model Layers:")
-st.write([layer.name for layer in model.layers])
+
 
 # Patient Form
 st.subheader("Patient Information")

@@ -225,6 +225,30 @@ st.title("🫁 Tuberculosis Detection AI")
 model = load_tb_model()
 st.success("✅ AI Model Loaded")
 
+# -------------------------
+# Patient Information Form
+# -------------------------
+st.subheader("Patient Information")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    patient_name = st.text_input("Patient Name")
+    patient_age = st.number_input("Age", min_value=0, max_value=120, step=1)
+    patient_gender = st.selectbox("Gender", ["Male", "Female", "Other"])
+
+with col2:
+    patient_id = st.text_input("Patient ID")
+    referring_physician = st.text_input("Referring Physician")
+
+st.divider()
+
+# -------------------------
+# File Upload
+# -------------------------
+uploaded_file = st.file_uploader("📤 Upload Chest X-ray", type=["jpg", "jpeg", "png"])
+
+
 uploaded_file = st.file_uploader("📤 Upload Chest X-ray", type=["jpg", "jpeg", "png"])
 
 if uploaded_file:
@@ -272,11 +296,11 @@ if uploaded_file:
             tb_prob,
             normal_prob,
             temp_image_path,
-            patient_name,
+            patient_name or "N/A",
             patient_age,
             patient_gender,
-            patient_id,
-            referring_physician
+            patient_id or "N/A",
+            referring_physician or "N/A"
         )
 
         os.remove(temp_image_path)

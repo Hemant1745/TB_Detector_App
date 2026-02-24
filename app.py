@@ -48,9 +48,14 @@ def load_tb_model():
 # Grad-CAM
 # -------------------------------
 def make_gradcam_heatmap(img_array, model, last_conv_layer_name):
+
+    # Create grad model
     grad_model = tf.keras.models.Model(
-        [model.inputs],
-        [model.get_layer(last_conv_layer_name).output, model.output]
+        inputs=model.inputs,
+        outputs=[
+            model.get_layer(last_conv_layer_name).output,
+            model.outputs[0],
+        ],
     )
 
     with tf.GradientTape() as tape:
@@ -58,13 +63,17 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name):
         loss = predictions[:, 0]
 
     grads = tape.gradient(loss, conv_outputs)
+
     pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
     conv_outputs = conv_outputs[0]
 
-    heatmap = conv_outputs @ pooled_grads[..., tf.newaxis]
-    heatmap = tf.squeeze(heatmap)
+    heatmap = tf.reduce_sum(
+        tf.multiply(pooled_grads, conv_outputs),
+        axis=-1
+    )
 
-    heatmap = np.maximum(heatmap, 0) / np.max(heatmap)
+    heatmap = tf.maximum(heatmap, 0) / (tf.reduce_max(heatmap) + 1e-8)
+
     return heatmap.numpy()
 
 # -------------------------------
@@ -168,8 +177,9 @@ def generate_pdf(
 st.title("🫁 Tuberculosis Detection AI")
 
 model = load_tb_model()
-dummy_input = np.zeros((1, 224, 224, 3))
-model.predict(dummy_input)
+# Force model to build (Keras 3 fix)
+dummy = np.zeros((1, 224, 224, 3))
+_ = model(dummy)
 st.success("✅ AI Model Loaded")
 
 # Patient Form

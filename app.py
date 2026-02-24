@@ -11,7 +11,6 @@ from tensorflow.keras.models import load_model
 import gdown
 from fpdf import FPDF
 import uuid
-import qrcode
 
 st.set_page_config(page_title="🫁 TB Detection AI", layout="wide")
 
@@ -102,33 +101,16 @@ def generate_pdf(
 
     pdf = FPDF()
     pdf.add_page()
+    pdf.set_font("Arial", size=12)
 
-    font_path = "fonts/DejaVuSans.ttf"
-    if os.path.exists(font_path):
-        pdf.add_font("DejaVu", "", font_path, uni=True)
-        pdf.set_font("DejaVu", "", 12)
-    else:
-        pdf.set_font("Arial", size=12)
-
-    # Logo
-    if os.path.exists("assets/logo.jpg"):
-        pdf.image("assets/logo.jpg", x=10, y=8, w=30)
-
-    # Header
-    pdf.set_font("DejaVu", "", 16)
     pdf.cell(0, 10, "AI-Assisted Tuberculosis Screening Report", ln=True, align="C")
     pdf.ln(5)
 
-    pdf.set_font("DejaVu", "", 10)
     pdf.cell(0, 8, f"Report ID: {report_id}", ln=True)
     pdf.cell(0, 8, f"Generated: {timestamp}", ln=True)
     pdf.ln(5)
 
-    # Patient Info
-    pdf.set_font("DejaVu", "", 12)
     pdf.cell(0, 8, "Patient Information", ln=True)
-
-    pdf.set_font("DejaVu", "", 10)
     pdf.multi_cell(
         0,
         6,
@@ -140,33 +122,16 @@ def generate_pdf(
     )
     pdf.ln(5)
 
-    # Original X-ray
     if os.path.exists(image_path):
         pdf.image(image_path, x=40, w=130)
         pdf.ln(85)
 
-    # Heatmap
     if heatmap_path and os.path.exists(heatmap_path):
-        pdf.set_font("DejaVu", "", 12)
         pdf.cell(0, 8, "AI Localization (Grad-CAM Heatmap)", ln=True)
-
         pdf.image(heatmap_path, x=40, w=130)
         pdf.ln(85)
 
-        pdf.set_font("DejaVu", "", 9)
-        pdf.multi_cell(
-            0,
-            5,
-            "Red/Yellow regions indicate areas of highest AI attention "
-            "associated with tuberculosis-related radiographic patterns."
-        )
-        pdf.ln(5)
-
-    # Probability
-    pdf.set_font("DejaVu", "", 12)
     pdf.cell(0, 8, "AI Probability Assessment", ln=True)
-
-    pdf.set_font("DejaVu", "", 10)
     pdf.multi_cell(
         0,
         6,
@@ -189,7 +154,7 @@ dummy_input = np.zeros((1, 224, 224, 3))
 _ = model(dummy_input)
 st.success("✅ AI Model Loaded")
 
-# Patient Info
+# Patient Form
 st.subheader("Patient Information")
 
 col1, col2 = st.columns(2)
@@ -236,34 +201,32 @@ if uploaded_file:
 
         if tb_prob > 0.5:
             msg = "Positive for Tuberculosis"
+
             heatmap = make_gradcam_heatmap(img_array, model, "conv2d_2")
 
-if heatmap is not None:
-heatmap = cv2.resize(heatmap, (img.width, img.height))
-heatmap = np.uint8(255 * heatmap)
+            if heatmap is not None:
 
-heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+                heatmap = cv2.resize(heatmap, (img.width, img.height))
+                heatmap = np.uint8(255 * heatmap)
+                heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
 
-# Convert original image to OpenCV format (BGR)
-original_img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+                original_img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
 
-# Overlay
-superimposed_img = cv2.addWeighted(
-    original_img,
-    0.6,
-    heatmap,
-    0.4,
-    0
-)
+                superimposed_img = cv2.addWeighted(
+                    original_img,
+                    0.6,
+                    heatmap,
+                    0.4,
+                    0
+                )
 
-# Convert back to RGB for Streamlit
-superimposed_img = cv2.cvtColor(superimposed_img, cv2.COLOR_BGR2RGB)
+                superimposed_img = cv2.cvtColor(superimposed_img, cv2.COLOR_BGR2RGB)
 
-st.subheader("📍 AI Highlighted TB Region")
-st.image(superimposed_img, use_container_width=True)
+                st.subheader("📍 AI Highlighted TB Region")
+                st.image(superimposed_img, use_container_width=True)
 
                 heatmap_path = "temp_heatmap.png"
-                cv2.imwrite(heatmap_path, superimposed_img)
+                cv2.imwrite(heatmap_path, cv2.cvtColor(superimposed_img, cv2.COLOR_RGB2BGR))
 
         elif 0.3 <= tb_prob <= 0.5:
             msg = "⚠️ Possible Tuberculosis"
@@ -279,7 +242,6 @@ st.image(superimposed_img, use_container_width=True)
 
         st.progress(tb_prob)
 
-        # PDF
         temp_image_path = "temp_image.png"
         img.save(temp_image_path)
 

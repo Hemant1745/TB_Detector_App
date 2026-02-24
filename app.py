@@ -45,141 +45,150 @@ def load_tb_model():
 from fpdf import FPDF
 from datetime import datetime
 import os
+import qrcode
+import uuid
 
-def generate_pdf(filename, tb_prob, normal_prob, result_text, image_path):
+def generate_report_id():
+    return f"TB-{uuid.uuid4().hex[:8].upper()}"
 
+def generate_pdf(
+    filename,
+    tb_prob,
+    normal_prob,
+    image_path,
+    patient_name,
+    patient_age,
+    patient_gender,
+    patient_id,
+    referring_physician
+):
+
+    report_id = generate_report_id()
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     pdf = FPDF()
     pdf.add_page()
 
-    # -------------------------------
-    # Load Unicode Font
-    # -------------------------------
     font_path = "fonts/DejaVuSans.ttf"
     pdf.add_font("DejaVu", "", font_path, uni=True)
-    pdf.set_font("DejaVu", "", 16)
+    pdf.set_font("DejaVu", "", 12)
 
     # -------------------------------
-    # Header
+    # Hospital Logo
     # -------------------------------
+    if os.path.exists("assets/logo.png"):
+        pdf.image("assets/logo.png", x=10, y=8, w=30)
+
+    pdf.set_font("DejaVu", "", 16)
     pdf.cell(0, 10, "AI-Assisted Tuberculosis Screening Report", ln=True, align="C")
     pdf.ln(5)
 
-    pdf.set_font("DejaVu", "", 11)
-    pdf.cell(0, 8, f"Report Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True)
-    pdf.cell(0, 8, f"Image File: {filename}", ln=True)
-    pdf.ln(5)
+    pdf.set_font("DejaVu", "", 10)
+    pdf.cell(0, 8, f"Report ID: {report_id}", ln=True)
+    pdf.cell(0, 8, f"Generated: {timestamp}", ln=True)
+    pdf.ln(3)
 
     # -------------------------------
-    # Insert X-ray Image
+    # Patient Information
+    # -------------------------------
+    pdf.set_font("DejaVu", "", 12)
+    pdf.cell(0, 8, "Patient Information", ln=True)
+    pdf.set_font("DejaVu", "", 10)
+    pdf.multi_cell(0, 6,
+        f"Name: {patient_name}\n"
+        f"Patient ID: {patient_id}\n"
+        f"Age: {patient_age}\n"
+        f"Gender: {patient_gender}\n"
+        f"Referring Physician: {referring_physician}"
+    )
+    pdf.ln(3)
+
+    # -------------------------------
+    # X-ray Image
     # -------------------------------
     if os.path.exists(image_path):
         pdf.image(image_path, x=40, w=130)
         pdf.ln(85)
 
     # -------------------------------
-    # Probability Summary
+    # AI Assessment
     # -------------------------------
-    pdf.set_font("DejaVu", "", 13)
-    pdf.cell(0, 8, "1. AI Probability Assessment", ln=True)
-    pdf.set_font("DejaVu", "", 11)
-    pdf.multi_cell(0, 7,
+    pdf.set_font("DejaVu", "", 12)
+    pdf.cell(0, 8, "AI Probability Assessment", ln=True)
+    pdf.set_font("DejaVu", "", 10)
+    pdf.multi_cell(0, 6,
         f"Tuberculosis Probability: {tb_prob*100:.2f}%\n"
         f"Normal Probability: {normal_prob*100:.2f}%"
     )
     pdf.ln(3)
 
     # -------------------------------
-    # Structured Interpretation
+    # Clinical Interpretation
     # -------------------------------
-    pdf.set_font("DejaVu", "", 13)
-    pdf.cell(0, 8, "2. Structured Clinical Interpretation", ln=True)
-    pdf.set_font("DejaVu", "", 11)
+    pdf.set_font("DejaVu", "", 12)
+    pdf.cell(0, 8, "Clinical Interpretation", ln=True)
+    pdf.set_font("DejaVu", "", 10)
 
     if tb_prob >= 0.70:
-        interpretation = (
-            "The AI model identifies radiographic features highly suggestive of "
-            "pulmonary tuberculosis. Immediate clinical correlation, sputum testing, "
-            "and physician evaluation are strongly recommended."
-        )
-        confidence_level = "High Confidence Detection"
+        interpretation = "Findings highly suggestive of active pulmonary tuberculosis. Immediate clinical follow-up recommended."
     elif 0.40 <= tb_prob < 0.70:
-        interpretation = (
-            "The AI model identifies potential abnormalities consistent with "
-            "early or mild pulmonary tuberculosis. Further diagnostic evaluation "
-            "is advised to confirm findings."
-        )
-        confidence_level = "Moderate Confidence Detection"
+        interpretation = "Radiographic features possibly consistent with tuberculosis. Further diagnostic testing advised."
     else:
-        interpretation = (
-            "The AI model does not detect radiographic patterns consistent with "
-            "active pulmonary tuberculosis. Clinical correlation is still advised "
-            "if symptoms persist."
-        )
-        confidence_level = "Low Probability of TB"
+        interpretation = "No radiographic evidence strongly indicative of active tuberculosis."
 
-    pdf.multi_cell(0, 7, interpretation)
+    pdf.multi_cell(0, 6, interpretation)
     pdf.ln(3)
 
     # -------------------------------
     # Model Confidence Explanation
     # -------------------------------
-    pdf.set_font("DejaVu", "", 13)
-    pdf.cell(0, 8, "3. AI Confidence Explanation", ln=True)
-    pdf.set_font("DejaVu", "", 11)
-
-    confidence_text = (
-        f"The confidence score is derived from the model's sigmoid output layer. "
-        f"A value of {tb_prob:.4f} represents the predicted likelihood of tuberculosis "
-        f"based on learned radiographic feature patterns. "
-        f"This score does not represent a confirmed diagnosis."
-    )
-
-    pdf.multi_cell(0, 7, confidence_text)
-    pdf.ln(3)
-
-    # -------------------------------
-    # Technical Model Information
-    # -------------------------------
-    pdf.set_font("DejaVu", "", 13)
-    pdf.cell(0, 8, "4. Technical Model Information", ln=True)
-    pdf.set_font("DejaVu", "", 11)
-
-    pdf.multi_cell(0, 7,
-        "Model Type: Convolutional Neural Network (CNN)\n"
-        "Input Resolution: 224 x 224 RGB\n"
-        "Inference Method: Single Image Forward Pass\n"
-        "Output: Binary Classification (TB vs Normal)"
-    )
-    pdf.ln(3)
-
-    # -------------------------------
-    # Medical Disclaimer
-    # -------------------------------
-    pdf.set_font("DejaVu", "", 13)
-    pdf.cell(0, 8, "5. Medical Disclaimer", ln=True)
+    pdf.set_font("DejaVu", "", 12)
+    pdf.cell(0, 8, "AI Confidence Explanation", ln=True)
     pdf.set_font("DejaVu", "", 10)
-
-    disclaimer = (
-        "This report is generated by an Artificial Intelligence system for "
-        "screening support purposes only. It is not a substitute for professional "
-        "medical diagnosis, radiological assessment, or clinical judgment. "
-        "Final interpretation must be performed by a licensed medical practitioner. "
-        "The developers of this system assume no liability for medical decisions "
-        "made based on this report."
+    pdf.multi_cell(0, 6,
+        f"The confidence score ({tb_prob:.4f}) represents the predicted likelihood "
+        f"based on the AI model's trained radiographic feature recognition."
     )
-
-    pdf.multi_cell(0, 6, disclaimer)
+    pdf.ln(3)
 
     # -------------------------------
-    # Footer
+    # QR Code Generation
+    # -------------------------------
+    qr_data = f"Report ID: {report_id}\nPatient: {patient_name}\nTB Probability: {tb_prob:.4f}"
+    qr = qrcode.make(qr_data)
+    qr_path = "temp_qr.png"
+    qr.save(qr_path)
+
+    pdf.image(qr_path, x=160, y=20, w=35)
+    os.remove(qr_path)
+
+    # -------------------------------
+    # Digital Signature Block
     # -------------------------------
     pdf.ln(10)
-    pdf.set_font("DejaVu", "", 9)
-    pdf.cell(0, 8, "AI TB Detection System | Research Use Only", align="C")
+    pdf.set_font("DejaVu", "", 12)
+    pdf.cell(0, 8, "Authorized Digital Signature", ln=True)
+    pdf.set_font("DejaVu", "", 10)
+    pdf.multi_cell(0, 6,
+        "AI Radiology System\n"
+        "Digitally Generated Report\n"
+        "Signature ID: " + report_id
+    )
+    pdf.ln(3)
 
-    report_name = "AI_TB_Screening_Report.pdf"
+    # -------------------------------
+    # Disclaimer
+    # -------------------------------
+    pdf.set_font("DejaVu", "", 9)
+    pdf.multi_cell(0, 5,
+        "This AI-generated report is intended for screening support only and "
+        "does not replace professional medical diagnosis. Clinical decisions "
+        "must be made by a licensed medical practitioner."
+    )
+
+    report_name = f"{report_id}_TB_Report.pdf"
     pdf.output(report_name)
+
     return report_name
 
 

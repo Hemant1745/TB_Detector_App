@@ -221,7 +221,7 @@ if uploaded_file:
             tb_prob = float(pred[0][0])
 
 
-        tb_prob = float(pred)
+        tb_prob = float(pred.numpy()[0][0])
         normal_prob = 1 - tb_prob
 
         if tb_prob > 0.5:

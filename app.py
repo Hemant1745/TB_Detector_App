@@ -238,17 +238,29 @@ if uploaded_file:
             msg = "Positive for Tuberculosis"
             heatmap = make_gradcam_heatmap(img_array, model, "conv2d_2")
 
-            if heatmap is not None:
-                heatmap = cv2.resize(heatmap, (img.width, img.height))
-                heatmap = np.uint8(255 * heatmap)
-                heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+if heatmap is not None:
+heatmap = cv2.resize(heatmap, (img.width, img.height))
+heatmap = np.uint8(255 * heatmap)
 
-                superimposed_img = cv2.addWeighted(
-                    np.array(img), 0.6, heatmap, 0.4, 0
-                )
+heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
 
-                st.subheader("📍 AI Highlighted TB Region")
-                st.image(superimposed_img, use_container_width=True)
+# Convert original image to OpenCV format (BGR)
+original_img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+
+# Overlay
+superimposed_img = cv2.addWeighted(
+    original_img,
+    0.6,
+    heatmap,
+    0.4,
+    0
+)
+
+# Convert back to RGB for Streamlit
+superimposed_img = cv2.cvtColor(superimposed_img, cv2.COLOR_BGR2RGB)
+
+st.subheader("📍 AI Highlighted TB Region")
+st.image(superimposed_img, use_container_width=True)
 
                 heatmap_path = "temp_heatmap.png"
                 cv2.imwrite(heatmap_path, superimposed_img)

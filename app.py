@@ -110,9 +110,11 @@ def generate_pdf(
     else:
         pdf.set_font("Arial", size=12)
 
+    # Hospital Logo
     if os.path.exists("assets/logo.jpg"):
         pdf.image("assets/logo.jpg", x=10, y=8, w=30)
 
+    # Header
     pdf.set_font("DejaVu", "", 16)
     pdf.cell(0, 10, "AI-Assisted Tuberculosis Screening Report", ln=True, align="C")
     pdf.ln(5)
@@ -122,11 +124,14 @@ def generate_pdf(
     pdf.cell(0, 8, f"Generated: {timestamp}", ln=True)
     pdf.ln(5)
 
+    # Patient Info
     pdf.set_font("DejaVu", "", 12)
     pdf.cell(0, 8, "Patient Information", ln=True)
 
     pdf.set_font("DejaVu", "", 10)
-    pdf.multi_cell(0, 6,
+    pdf.multi_cell(
+        0,
+        6,
         f"Name: {patient_name}\n"
         f"Patient ID: {patient_id}\n"
         f"Age: {patient_age}\n"
@@ -135,38 +140,45 @@ def generate_pdf(
     )
     pdf.ln(5)
 
+    # Original X-ray
     if os.path.exists(image_path):
         pdf.image(image_path, x=40, w=130)
         pdf.ln(85)
-        # Insert AI Heatmap (if available)
-if heatmap_path and os.path.exists(heatmap_path):
-    pdf.ln(5)
-    pdf.set_font("DejaVu", "", 12)
-    pdf.cell(0, 8, "AI Localization (Grad-CAM Heatmap)", ln=True)
 
-    pdf.image(heatmap_path, x=40, w=130)
-    pdf.ln(85)
+    # Heatmap Section
+    if heatmap_path and os.path.exists(heatmap_path):
+        pdf.set_font("DejaVu", "", 12)
+        pdf.cell(0, 8, "AI Localization (Grad-CAM Heatmap)", ln=True)
 
+        pdf.image(heatmap_path, x=40, w=130)
+        pdf.ln(85)
 
+        pdf.set_font("DejaVu", "", 9)
+        pdf.multi_cell(
+            0,
+            5,
+            "Red/Yellow regions indicate areas of highest AI attention "
+            "associated with tuberculosis-related radiographic patterns."
+        )
+        pdf.ln(5)
+
+    # Probability Section
     pdf.set_font("DejaVu", "", 12)
     pdf.cell(0, 8, "AI Probability Assessment", ln=True)
 
     pdf.set_font("DejaVu", "", 10)
-    pdf.multi_cell(0, 6,
+    pdf.multi_cell(
+        0,
+        6,
         f"Tuberculosis Probability: {tb_prob*100:.2f}%\n"
         f"Normal Probability: {normal_prob*100:.2f}%"
-    pdf.set_font("DejaVu", "", 9)
-    pdf.multi_cell(0, 5,
-    "Red/Yellow regions indicate areas of highest AI attention "
-    "associated with tuberculosis-related radiographic patterns."
-)
-              
     )
 
     report_name = f"{report_id}_TB_Report.pdf"
     pdf.output(report_name)
 
     return report_name
+
 
 # -------------------------------
 # MAIN APP

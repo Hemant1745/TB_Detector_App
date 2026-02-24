@@ -80,8 +80,9 @@ def generate_pdf(
     # -----------------------------
     # Hospital Logo (optional)
     # -----------------------------
-    if os.path.exists("assets/logo.png"):
-        pdf.image("assets/logo.png", x=10, y=8, w=30)
+    if os.path.exists("assets/logo.jpg"):
+    pdf.image("assets/logo.jpg", x=10, y=8, w=30)
+
 
     # -----------------------------
     # Header

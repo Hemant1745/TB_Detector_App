@@ -46,11 +46,11 @@ def load_tb_model():
 
 # -------------------------------
 # Grad-CAM
+# -------------------------------
 def make_gradcam_heatmap(img_array, model, last_conv_layer_name):
 
-    # Ensure gradient tracking
     img_tensor = tf.convert_to_tensor(img_array)
-    
+
     grad_model = tf.keras.models.Model(
         inputs=model.inputs,
         outputs=[
@@ -65,7 +65,6 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name):
 
     grads = tape.gradient(loss, conv_outputs)
 
-    # 🔴 If grads is None, stop safely
     if grads is None:
         return None
 
@@ -81,7 +80,6 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name):
     heatmap /= tf.reduce_max(heatmap) + 1e-8
 
     return heatmap.numpy()
-
 
 # -------------------------------
 # PDF Generator
@@ -148,30 +146,6 @@ def generate_pdf(
         f"Tuberculosis Probability: {tb_prob*100:.2f}%\n"
         f"Normal Probability: {normal_prob*100:.2f}%"
     )
-    pdf.ln(5)
-
-    if tb_prob >= 0.7:
-        interpretation = "Findings highly suggestive of active pulmonary tuberculosis."
-    elif 0.4 <= tb_prob < 0.7:
-        interpretation = "Radiographic features possibly consistent with tuberculosis."
-    else:
-        interpretation = "No strong radiographic evidence of tuberculosis."
-
-    pdf.multi_cell(0, 6, interpretation)
-    pdf.ln(5)
-
-    qr_data = f"Report ID: {report_id}\nTB Probability: {tb_prob:.4f}"
-    qr = qrcode.make(qr_data)
-    qr_path = "temp_qr.png"
-    qr.save(qr_path)
-    pdf.image(qr_path, x=160, y=20, w=35)
-    os.remove(qr_path)
-
-    pdf.set_font("DejaVu", "", 9)
-    pdf.multi_cell(0, 5,
-        "This AI-generated report is for screening purposes only "
-        "and does not replace professional medical diagnosis."
-    )
 
     report_name = f"{report_id}_TB_Report.pdf"
     pdf.output(report_name)
@@ -184,11 +158,9 @@ def generate_pdf(
 st.title("🫁 Tuberculosis Detection AI")
 
 model = load_tb_model()
-# Force model graph build (Keras 3 fix)
 dummy_input = np.zeros((1, 224, 224, 3))
 _ = model(dummy_input)
 st.success("✅ AI Model Loaded")
-
 
 # Patient Form
 st.subheader("Patient Information")
@@ -213,6 +185,7 @@ uploaded_file = st.file_uploader(
 )
 
 if uploaded_file:
+
     img = Image.open(uploaded_file)
 
     col1, col2 = st.columns(2)
@@ -221,15 +194,16 @@ if uploaded_file:
         st.image(img, caption="Uploaded X-ray", use_container_width=True)
 
     with col2:
+
         img_processed = img.convert("RGB").resize((224, 224))
         img_array = np.array(img_processed) / 255.0
         img_array = np.expand_dims(img_array, axis=0)
 
         with st.spinner("Analyzing image..."):
             pred = model(img_array, training=False)
+
         tb_prob = float(pred.numpy()[0][0])
         normal_prob = 1 - tb_prob
-
 
         if tb_prob > 0.5:
             msg = "Positive for Tuberculosis"
@@ -251,23 +225,21 @@ if uploaded_file:
         if tb_prob > 0.5:
             heatmap = make_gradcam_heatmap(img_array, model, "conv2d_2")
 
-if heatmap is not None:
-    heatmap = cv2.resize(heatmap, (img.width, img.height))
-    heatmap = np.uint8(255 * heatmap)
-    heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+            if heatmap is not None:
+                heatmap = cv2.resize(heatmap, (img.width, img.height))
+                heatmap = np.uint8(255 * heatmap)
+                heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
 
-    superimposed_img = cv2.addWeighted(
-        np.array(img),
-        0.6,
-        heatmap,
-        0.4,
-        0
-    )
+                superimposed_img = cv2.addWeighted(
+                    np.array(img),
+                    0.6,
+                    heatmap,
+                    0.4,
+                    0
+                )
 
-    st.subheader("📍 AI Highlighted TB Region")
-    st.image(superimposed_img, use_container_width=True)
-
-            
+                st.subheader("📍 AI Highlighted TB Region")
+                st.image(superimposed_img, use_container_width=True)
 
         # Generate PDF
         temp_image_path = "temp_image.png"

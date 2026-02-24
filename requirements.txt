@@ -7,3 +7,4 @@ bcrypt
 fpdf
 python-dotenv
 gdown
+qrcode

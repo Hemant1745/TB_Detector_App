@@ -181,6 +181,8 @@ model = load_tb_model()
 dummy = np.zeros((1, 224, 224, 3))
 _ = model(dummy)
 st.success("✅ AI Model Loaded")
+st.write("Model Layers:")
+st.write([layer.name for layer in model.layers])
 
 # Patient Form
 st.subheader("Patient Information")

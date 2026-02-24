@@ -46,7 +46,8 @@ from fpdf import FPDF
 from datetime import datetime
 import os
 
-def generate_pdf(filename, tb_prob, normal_prob, image_path):
+def generate_pdf(filename, tb_prob, normal_prob, result_text, image_path):
+
 
     pdf = FPDF()
     pdf.add_page()

@@ -100,11 +100,11 @@ if uploaded_file:
         normal_prob = 1 - tb_prob
 
         if tb_prob > 0.5:
-            msg = "⚠️ Tuberculosis Detected"
+            msg = "Positive for Tuberculosis"
         elif 0.3 <= tb_prob <= 0.5:
             msg = "⚠️ Possible Tuberculosis"
         else:
-            msg = "✅ Normal Chest X-ray"
+            msg = "✅ No Radiographic Evidence of Tuberculosis"
 
         st.markdown(f"""
         <div class='result-card'>

@@ -45,11 +45,8 @@ def load_tb_model():
 from fpdf import FPDF
 from datetime import datetime
 import os
-import qrcode
 import uuid
-
-def generate_report_id():
-    return f"TB-{uuid.uuid4().hex[:8].upper()}"
+import qrcode
 
 def generate_pdf(
     filename,
@@ -63,22 +60,31 @@ def generate_pdf(
     referring_physician
 ):
 
-    report_id = generate_report_id()
+    # -----------------------------
+    # Generate Report ID
+    # -----------------------------
+    report_id = f"TB-{uuid.uuid4().hex[:8].upper()}"
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     pdf = FPDF()
     pdf.add_page()
 
+    # -----------------------------
+    # Load Unicode Font
+    # -----------------------------
     font_path = "fonts/DejaVuSans.ttf"
     pdf.add_font("DejaVu", "", font_path, uni=True)
     pdf.set_font("DejaVu", "", 12)
 
-    # -------------------------------
-    # Hospital Logo
-    # -------------------------------
+    # -----------------------------
+    # Hospital Logo (optional)
+    # -----------------------------
     if os.path.exists("assets/logo.png"):
         pdf.image("assets/logo.png", x=10, y=8, w=30)
 
+    # -----------------------------
+    # Header
+    # -----------------------------
     pdf.set_font("DejaVu", "", 16)
     pdf.cell(0, 10, "AI-Assisted Tuberculosis Screening Report", ln=True, align="C")
     pdf.ln(5)
@@ -88,73 +94,91 @@ def generate_pdf(
     pdf.cell(0, 8, f"Generated: {timestamp}", ln=True)
     pdf.ln(3)
 
-    # -------------------------------
+    # -----------------------------
     # Patient Information
-    # -------------------------------
+    # -----------------------------
     pdf.set_font("DejaVu", "", 12)
     pdf.cell(0, 8, "Patient Information", ln=True)
     pdf.set_font("DejaVu", "", 10)
+
     pdf.multi_cell(0, 6,
-        f"Name: {patient_name}\n"
-        f"Patient ID: {patient_id}\n"
+        f"Name: {patient_name or 'N/A'}\n"
+        f"Patient ID: {patient_id or 'N/A'}\n"
         f"Age: {patient_age}\n"
         f"Gender: {patient_gender}\n"
-        f"Referring Physician: {referring_physician}"
+        f"Referring Physician: {referring_physician or 'N/A'}"
     )
     pdf.ln(3)
 
-    # -------------------------------
-    # X-ray Image
-    # -------------------------------
+    # -----------------------------
+    # Insert X-ray Image
+    # -----------------------------
     if os.path.exists(image_path):
         pdf.image(image_path, x=40, w=130)
         pdf.ln(85)
 
-    # -------------------------------
-    # AI Assessment
-    # -------------------------------
+    # -----------------------------
+    # AI Probability Assessment
+    # -----------------------------
     pdf.set_font("DejaVu", "", 12)
     pdf.cell(0, 8, "AI Probability Assessment", ln=True)
     pdf.set_font("DejaVu", "", 10)
+
     pdf.multi_cell(0, 6,
         f"Tuberculosis Probability: {tb_prob*100:.2f}%\n"
         f"Normal Probability: {normal_prob*100:.2f}%"
     )
     pdf.ln(3)
 
-    # -------------------------------
+    # -----------------------------
     # Clinical Interpretation
-    # -------------------------------
+    # -----------------------------
     pdf.set_font("DejaVu", "", 12)
     pdf.cell(0, 8, "Clinical Interpretation", ln=True)
     pdf.set_font("DejaVu", "", 10)
 
     if tb_prob >= 0.70:
-        interpretation = "Findings highly suggestive of active pulmonary tuberculosis. Immediate clinical follow-up recommended."
+        interpretation = (
+            "Findings highly suggestive of active pulmonary tuberculosis. "
+            "Immediate clinical evaluation and laboratory confirmation recommended."
+        )
     elif 0.40 <= tb_prob < 0.70:
-        interpretation = "Radiographic features possibly consistent with tuberculosis. Further diagnostic testing advised."
+        interpretation = (
+            "Radiographic features possibly consistent with tuberculosis. "
+            "Further diagnostic testing is advised."
+        )
     else:
-        interpretation = "No radiographic evidence strongly indicative of active tuberculosis."
+        interpretation = (
+            "No radiographic evidence strongly indicative of active pulmonary tuberculosis."
+        )
 
     pdf.multi_cell(0, 6, interpretation)
     pdf.ln(3)
 
-    # -------------------------------
-    # Model Confidence Explanation
-    # -------------------------------
+    # -----------------------------
+    # AI Confidence Explanation
+    # -----------------------------
     pdf.set_font("DejaVu", "", 12)
     pdf.cell(0, 8, "AI Confidence Explanation", ln=True)
     pdf.set_font("DejaVu", "", 10)
+
     pdf.multi_cell(0, 6,
-        f"The confidence score ({tb_prob:.4f}) represents the predicted likelihood "
-        f"based on the AI model's trained radiographic feature recognition."
+        f"The confidence score ({tb_prob:.4f}) represents the predicted "
+        f"likelihood of tuberculosis based on the AI model's learned "
+        f"radiographic feature patterns. This does not constitute a confirmed diagnosis."
     )
     pdf.ln(3)
 
-    # -------------------------------
-    # QR Code Generation
-    # -------------------------------
-    qr_data = f"Report ID: {report_id}\nPatient: {patient_name}\nTB Probability: {tb_prob:.4f}"
+    # -----------------------------
+    # QR Code
+    # -----------------------------
+    qr_data = (
+        f"Report ID: {report_id}\n"
+        f"Patient: {patient_name}\n"
+        f"TB Probability: {tb_prob:.4f}\n"
+        f"Generated: {timestamp}"
+    )
+
     qr = qrcode.make(qr_data)
     qr_path = "temp_qr.png"
     qr.save(qr_path)
@@ -162,27 +186,28 @@ def generate_pdf(
     pdf.image(qr_path, x=160, y=20, w=35)
     os.remove(qr_path)
 
-    # -------------------------------
+    # -----------------------------
     # Digital Signature Block
-    # -------------------------------
+    # -----------------------------
     pdf.ln(10)
     pdf.set_font("DejaVu", "", 12)
     pdf.cell(0, 8, "Authorized Digital Signature", ln=True)
     pdf.set_font("DejaVu", "", 10)
+
     pdf.multi_cell(0, 6,
         "AI Radiology System\n"
         "Digitally Generated Report\n"
-        "Signature ID: " + report_id
+        f"Signature ID: {report_id}"
     )
     pdf.ln(3)
 
-    # -------------------------------
-    # Disclaimer
-    # -------------------------------
+    # -----------------------------
+    # Medical Disclaimer
+    # -----------------------------
     pdf.set_font("DejaVu", "", 9)
     pdf.multi_cell(0, 5,
-        "This AI-generated report is intended for screening support only and "
-        "does not replace professional medical diagnosis. Clinical decisions "
+        "This AI-generated report is intended for screening support purposes only "
+        "and does not replace professional medical diagnosis. Clinical decisions "
         "must be made by a licensed medical practitioner."
     )
 
@@ -190,7 +215,6 @@ def generate_pdf(
     pdf.output(report_name)
 
     return report_name
-
 
 # -------------------------------
 # 🚀 Main Dashboard

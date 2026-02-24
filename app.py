@@ -45,7 +45,11 @@ def load_tb_model():
 def generate_pdf(filename, tb_prob, normal_prob, result_text, image_path):
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_font("Helvetica", "", 14)
+
+    # Add Unicode font
+    font_path = "fonts/DejaVuSans.ttf"
+    pdf.add_font("DejaVu", "", font_path, uni=True)
+    pdf.set_font("DejaVu", "", 14)
 
     pdf.cell(200, 10, txt="Tuberculosis Detection Report", ln=True, align="C")
     pdf.ln(10)
@@ -54,7 +58,7 @@ def generate_pdf(filename, tb_prob, normal_prob, result_text, image_path):
         pdf.image(image_path, x=60, y=25, w=90)
         pdf.ln(85)
 
-    pdf.set_font("Helvetica", "", 12)
+    pdf.set_font("DejaVu", "", 12)
     pdf.cell(200, 10, txt=f"File: {filename}", ln=True)
     pdf.cell(200, 10, txt=f"TB Probability: {tb_prob*100:.2f}%", ln=True)
     pdf.cell(200, 10, txt=f"Normal Probability: {normal_prob*100:.2f}%", ln=True)
@@ -64,6 +68,7 @@ def generate_pdf(filename, tb_prob, normal_prob, result_text, image_path):
     report_name = "tb_report.pdf"
     pdf.output(report_name)
     return report_name
+
 
 # -------------------------------
 # 🚀 Main Dashboard

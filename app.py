@@ -214,9 +214,9 @@ if uploaded_file:
 
                 superimposed_img = cv2.addWeighted(
                     original_img,
-                    0.6,
-                    heatmap,
                     0.4,
+                    heatmap,
+                    0.6,
                     0
                 )
 

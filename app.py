@@ -297,11 +297,15 @@ if uploaded_file:
         tb_prob = float(pred)
         normal_prob = 1 - tb_prob
 
-        if tb_prob > 0.5:
-            heatmap = make_gradcam_heatmap(img_array, model, "conv2d_3")  # Replace with your last conv layer
-            heatmap = cv2.resize(heatmap, (img.width, img.height))
-            heatmap = np.uint8(255 * heatmap)
-            heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+       if tb_prob > 0.5:
+    msg = "Positive for Tuberculosis"
+
+elif 0.3 <= tb_prob <= 0.5:
+    msg = "⚠️ Possible Tuberculosis"
+
+else:
+    msg = "✅ No Radiographic Evidence of Tuberculosis"
+
 
     superimposed_img = cv2.addWeighted(
         np.array(img), 0.6, heatmap, 0.4, 0

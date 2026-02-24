@@ -110,7 +110,7 @@ def generate_pdf(
     else:
         pdf.set_font("Arial", size=12)
 
-    # Hospital Logo
+    # Logo
     if os.path.exists("assets/logo.jpg"):
         pdf.image("assets/logo.jpg", x=10, y=8, w=30)
 
@@ -145,7 +145,7 @@ def generate_pdf(
         pdf.image(image_path, x=40, w=130)
         pdf.ln(85)
 
-    # Heatmap Section
+    # Heatmap
     if heatmap_path and os.path.exists(heatmap_path):
         pdf.set_font("DejaVu", "", 12)
         pdf.cell(0, 8, "AI Localization (Grad-CAM Heatmap)", ln=True)
@@ -162,7 +162,7 @@ def generate_pdf(
         )
         pdf.ln(5)
 
-    # Probability Section
+    # Probability
     pdf.set_font("DejaVu", "", 12)
     pdf.cell(0, 8, "AI Probability Assessment", ln=True)
 
@@ -179,7 +179,6 @@ def generate_pdf(
 
     return report_name
 
-
 # -------------------------------
 # MAIN APP
 # -------------------------------
@@ -190,7 +189,7 @@ dummy_input = np.zeros((1, 224, 224, 3))
 _ = model(dummy_input)
 st.success("✅ AI Model Loaded")
 
-# Patient Form
+# Patient Info
 st.subheader("Patient Information")
 
 col1, col2 = st.columns(2)
@@ -232,10 +231,28 @@ if uploaded_file:
 
         tb_prob = float(pred.numpy()[0][0])
         normal_prob = 1 - tb_prob
+
         heatmap_path = None
 
         if tb_prob > 0.5:
             msg = "Positive for Tuberculosis"
+            heatmap = make_gradcam_heatmap(img_array, model, "conv2d_2")
+
+            if heatmap is not None:
+                heatmap = cv2.resize(heatmap, (img.width, img.height))
+                heatmap = np.uint8(255 * heatmap)
+                heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+
+                superimposed_img = cv2.addWeighted(
+                    np.array(img), 0.6, heatmap, 0.4, 0
+                )
+
+                st.subheader("📍 AI Highlighted TB Region")
+                st.image(superimposed_img, use_container_width=True)
+
+                heatmap_path = "temp_heatmap.png"
+                cv2.imwrite(heatmap_path, superimposed_img)
+
         elif 0.3 <= tb_prob <= 0.5:
             msg = "⚠️ Possible Tuberculosis"
         else:
@@ -250,29 +267,7 @@ if uploaded_file:
 
         st.progress(tb_prob)
 
-        # Grad-CAM
-        if tb_prob > 0.5:
-            heatmap = make_gradcam_heatmap(img_array, model, "conv2d_2")
-
-            if heatmap is not None:
-                heatmap = cv2.resize(heatmap, (img.width, img.height))
-                heatmap = np.uint8(255 * heatmap)
-                heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
-
-                superimposed_img = cv2.addWeighted(
-                    np.array(img),
-                    0.6,
-                    heatmap,
-                    0.4,
-                    0
-                )
-
-                st.subheader("📍 AI Highlighted TB Region")
-                st.image(superimposed_img, use_container_width=True)
-                heatmap_path = "temp_heatmap.png"
-                cv2.imwrite(heatmap_path, superimposed_img)
-
-        # Generate PDF
+        # PDF
         temp_image_path = "temp_image.png"
         img.save(temp_image_path)
 
@@ -290,9 +285,9 @@ if uploaded_file:
         )
 
         os.remove(temp_image_path)
-if heatmap_path and os.path.exists(heatmap_path):
-    os.remove(heatmap_path)
 
+        if heatmap_path and os.path.exists(heatmap_path):
+            os.remove(heatmap_path)
 
         with open(report_file, "rb") as f:
             st.download_button(

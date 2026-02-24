@@ -217,7 +217,9 @@ if uploaded_file:
         img_array = np.expand_dims(img_array, axis=0)
 
         with st.spinner("Analyzing image..."):
-            pred = model.predict(img_array)[0][0]
+            pred = model(img_array, training=False)
+            tb_prob = float(pred[0][0])
+
 
         tb_prob = float(pred)
         normal_prob = 1 - tb_prob

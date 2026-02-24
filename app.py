@@ -168,6 +168,8 @@ def generate_pdf(
 st.title("🫁 Tuberculosis Detection AI")
 
 model = load_tb_model()
+dummy_input = np.zeros((1, 224, 224, 3))
+model.predict(dummy_input)
 st.success("✅ AI Model Loaded")
 
 # Patient Form

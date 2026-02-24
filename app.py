@@ -263,23 +263,32 @@ if uploaded_file:
         st.progress(tb_prob)
         st.text(f"Normal Probability: {normal_prob:.4f}")
 
-        # PDF generation
+              # PDF generation
         temp_image_path = "temp_image.png"
         img.save(temp_image_path)
-      report_file = generate_pdf(
-    uploaded_file.name,
-    tb_prob,
-    normal_prob,
-    temp_image_path,
-    patient_name,
-    patient_age,
-    patient_gender,
-    patient_id,
-    referring_physician
-)
+
+        report_file = generate_pdf(
+            uploaded_file.name,
+            tb_prob,
+            normal_prob,
+            temp_image_path,
+            patient_name,
+            patient_age,
+            patient_gender,
+            patient_id,
+            referring_physician
+        )
+
         os.remove(temp_image_path)
 
         with open(report_file, "rb") as f:
-            st.download_button("⬇️ Download Report", f, file_name=report_file, mime="application/pdf")
+            st.download_button(
+                "⬇️ Download Report",
+                f,
+                file_name=report_file,
+                mime="application/pdf"
+            )
 
-        st.markdown(f"🕓 Analysis Time: {datetime.now().strftime('%H:%M:%S')}")
+        st.markdown(
+            f"Analysis Time: {datetime.now().strftime('%H:%M:%S')}"
+        )

@@ -89,6 +89,7 @@ def generate_pdf(
     tb_prob,
     normal_prob,
     image_path,
+    heatmap_path,
     patient_name,
     patient_age,
     patient_gender,
@@ -137,6 +138,15 @@ def generate_pdf(
     if os.path.exists(image_path):
         pdf.image(image_path, x=40, w=130)
         pdf.ln(85)
+        # Insert AI Heatmap (if available)
+if heatmap_path and os.path.exists(heatmap_path):
+    pdf.ln(5)
+    pdf.set_font("DejaVu", "", 12)
+    pdf.cell(0, 8, "AI Localization (Grad-CAM Heatmap)", ln=True)
+
+    pdf.image(heatmap_path, x=40, w=130)
+    pdf.ln(85)
+
 
     pdf.set_font("DejaVu", "", 12)
     pdf.cell(0, 8, "AI Probability Assessment", ln=True)
@@ -145,6 +155,10 @@ def generate_pdf(
     pdf.multi_cell(0, 6,
         f"Tuberculosis Probability: {tb_prob*100:.2f}%\n"
         f"Normal Probability: {normal_prob*100:.2f}%"
+    pdf.set_font("DejaVu", "", 9)
+    pdf.multi_cell(0, 5,
+    "Red/Yellow regions indicate areas of highest AI attention "
+    "associated with tuberculosis-related radiographic patterns."              
     )
 
     report_name = f"{report_id}_TB_Report.pdf"
@@ -204,6 +218,7 @@ if uploaded_file:
 
         tb_prob = float(pred.numpy()[0][0])
         normal_prob = 1 - tb_prob
+        heatmap_path = None
 
         if tb_prob > 0.5:
             msg = "Positive for Tuberculosis"
@@ -240,6 +255,8 @@ if uploaded_file:
 
                 st.subheader("📍 AI Highlighted TB Region")
                 st.image(superimposed_img, use_container_width=True)
+                heatmap_path = "temp_heatmap.png"
+                cv2.imwrite(heatmap_path, superimposed_img)
 
         # Generate PDF
         temp_image_path = "temp_image.png"
@@ -250,6 +267,7 @@ if uploaded_file:
             tb_prob,
             normal_prob,
             temp_image_path,
+            heatmap_path,
             patient_name or "N/A",
             patient_age,
             patient_gender,
@@ -258,6 +276,9 @@ if uploaded_file:
         )
 
         os.remove(temp_image_path)
+if heatmap_path and os.path.exists(heatmap_path):
+    os.remove(heatmap_path)
+
 
         with open(report_file, "rb") as f:
             st.download_button(

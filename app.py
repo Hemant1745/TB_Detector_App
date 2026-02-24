@@ -158,7 +158,7 @@ if heatmap_path and os.path.exists(heatmap_path):
     pdf.set_font("DejaVu", "", 9)
     pdf.multi_cell(0, 5,
     "Red/Yellow regions indicate areas of highest AI attention "
-    "associated with tuberculosis-related radiographic patterns."              
+    "associated with tuberculosis-related radiographic patterns.")              
     )
 
     report_name = f"{report_id}_TB_Report.pdf"

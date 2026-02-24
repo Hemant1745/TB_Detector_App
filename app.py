@@ -60,6 +60,7 @@ def generate_pdf(
     referring_physician
 ):
 
+
     # -----------------------------
     # Generate Report ID
     # -----------------------------
@@ -265,7 +266,17 @@ if uploaded_file:
         # PDF generation
         temp_image_path = "temp_image.png"
         img.save(temp_image_path)
-        report_file = generate_pdf(uploaded_file.name, tb_prob, normal_prob, msg, temp_image_path)
+      report_file = generate_pdf(
+    uploaded_file.name,
+    tb_prob,
+    normal_prob,
+    temp_image_path,
+    patient_name,
+    patient_age,
+    patient_gender,
+    patient_id,
+    referring_physician
+)
         os.remove(temp_image_path)
 
         with open(report_file, "rb") as f:

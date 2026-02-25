@@ -47,34 +47,37 @@ def load_tb_model():
 
 def make_gradcam_heatmap(img_array, model, last_conv_layer_name):
 
-    img_tensor = tf.convert_to_tensor(img_array)
-
+    # Get last conv layer
     last_conv_layer = model.get_layer(last_conv_layer_name)
 
-    grad_model = tf.keras.models.Model(
-        inputs=model.inputs,
-        outputs=[last_conv_layer.output, model.outputs]
+    # Create feature extractor model
+    feature_model = tf.keras.models.Model(
+        model.inputs,
+        last_conv_layer.output
     )
 
-    with tf.GradientTape() as tape:
-        conv_outputs, predictions = grad_model(img_tensor)
-        class_channel = predictions[0][:, 0]
+    # Extract feature maps
+    conv_outputs = feature_model(img_array)
 
-    grads = tape.gradient(class_channel, conv_outputs)
+    # Get weights from final dense layer
+    final_dense = model.layers[-1]
+    weights = final_dense.get_weights()[0]  # shape (features, 1)
 
-    if grads is None:
-        return None
+    # Get weights for TB class
+    class_weights = weights[:, 0]
 
-    pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
-
+    # Multiply conv feature maps by class weights
     conv_outputs = conv_outputs[0]
 
-    heatmap = tf.reduce_sum(conv_outputs * pooled_grads, axis=-1)
+    heatmap = np.zeros(shape=conv_outputs.shape[:2], dtype=np.float32)
 
-    heatmap = tf.maximum(heatmap, 0)
-    heatmap /= tf.reduce_max(heatmap) + 1e-8
+    for i in range(class_weights.shape[0]):
+        heatmap += class_weights[i] * conv_outputs[:, :, i]
 
-    return heatmap.numpy()
+    heatmap = np.maximum(heatmap, 0)
+    heatmap /= np.max(heatmap) + 1e-8
+
+    return heatmap
 # -------------------------------
 # PDF Generator
 # -------------------------------

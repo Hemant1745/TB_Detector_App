@@ -52,13 +52,13 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name):
     last_conv_layer = model.get_layer(last_conv_layer_name)
 
     grad_model = tf.keras.models.Model(
-        inputs=model.input,
-        outputs=[last_conv_layer.output, model.output]
+        inputs=model.inputs,
+        outputs=[last_conv_layer.output, model.outputs]
     )
 
     with tf.GradientTape() as tape:
         conv_outputs, predictions = grad_model(img_tensor)
-        class_channel = predictions[:, 0]
+        class_channel = predictions[0][:, 0]
 
     grads = tape.gradient(class_channel, conv_outputs)
 
@@ -66,6 +66,7 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name):
         return None
 
     pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
+
     conv_outputs = conv_outputs[0]
 
     heatmap = tf.reduce_sum(conv_outputs * pooled_grads, axis=-1)
@@ -171,8 +172,8 @@ def generate_pdf(
 st.title("🫁 Tuberculosis Detection AI")
 
 model = load_tb_model()
-dummy_input = np.zeros((1, 224, 224, 3))
-_ = model(dummy_input)
+dummy = np.zeros((1, 224, 224, 3))
+_ = model(dummy)
 st.success("✅ AI Model Loaded")
 
 # Patient Form

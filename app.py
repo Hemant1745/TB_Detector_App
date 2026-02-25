@@ -246,7 +246,10 @@ if uploaded_file:
                     0.6,
                     0
                 )
-
+                
+        # 🔥 SAVE HEATMAP HERE
+                heatmap_path = "temp_heatmap.png"
+                cv2.imwrite(heatmap_path, superimposed_img)
                 superimposed_img = cv2.cvtColor(superimposed_img, cv2.COLOR_BGR2RGB)
 
                 st.subheader("📍 AI Highlighted TB Region")

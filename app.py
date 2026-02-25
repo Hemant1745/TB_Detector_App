@@ -43,26 +43,24 @@ def load_tb_model():
         gdown.download(url, model_path, quiet=False)
     return load_model(model_path)
 
-# -------------------------------
-# Grad-CAM
-# -------------------------------
+
+
 def make_gradcam_heatmap(img_array, model, last_conv_layer_name):
 
     img_tensor = tf.convert_to_tensor(img_array)
 
+    last_conv_layer = model.get_layer(last_conv_layer_name)
+
     grad_model = tf.keras.models.Model(
-        inputs=model.inputs,
-        outputs=[
-            model.get_layer(last_conv_layer_name).output,
-            model.outputs[0],
-        ],
+        inputs=model.input,
+        outputs=[last_conv_layer.output, model.output]
     )
 
     with tf.GradientTape() as tape:
-        conv_outputs, predictions = grad_model(img_tensor, training=True)
-        loss = predictions[:, 0]
+        conv_outputs, predictions = grad_model(img_tensor)
+        class_channel = predictions[:, 0]
 
-    grads = tape.gradient(loss, conv_outputs)
+    grads = tape.gradient(class_channel, conv_outputs)
 
     if grads is None:
         return None
@@ -70,16 +68,12 @@ def make_gradcam_heatmap(img_array, model, last_conv_layer_name):
     pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
     conv_outputs = conv_outputs[0]
 
-    heatmap = tf.reduce_sum(
-        tf.multiply(pooled_grads, conv_outputs),
-        axis=-1
-    )
+    heatmap = tf.reduce_sum(conv_outputs * pooled_grads, axis=-1)
 
     heatmap = tf.maximum(heatmap, 0)
     heatmap /= tf.reduce_max(heatmap) + 1e-8
 
     return heatmap.numpy()
-
 # -------------------------------
 # PDF Generator
 # -------------------------------

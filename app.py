@@ -1,4 +1,4 @@
-dra import os
+import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 import streamlit as st
